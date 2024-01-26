@@ -111,7 +111,7 @@ void webtv1_state::webtv1_map(address_map &map)
 	map(0x04005000, 0x04005fff).m(m_spotasic, FUNC(spot_asic_device::mem_unit_map));
 
 	// ROM
-	map(0x1f000000, 0x1f3fffff).rw(FUNC(bank0_flash_r), FUNC(webtv1_state::bank0_flash_w)).share("bank0"); // Flash ROM, 4MB (retail configuration 2MB)
+	map(0x1f000000, 0x1f3fffff).rw(FUNC(webtv1_state::bank0_flash_r), FUNC(webtv1_state::bank0_flash_w)).share("bank0"); // Flash ROM, 4MB (retail configuration 2MB)
 	map(0x1f800000, 0x1fffffff).rom().region("bank1", 0); // Mask ROM
 }
 
