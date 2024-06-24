@@ -311,8 +311,8 @@ private:
 	void irq_modem_w(int state);
 
 	uint32_t m_compare_armed;
-
-	bool m_aud_dma_ongoing;
+    
+    bool m_aud_dma_ongoing;
 
 	int m_serial_id_tx;
 

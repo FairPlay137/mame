@@ -39,17 +39,17 @@
 
     The divUnit (0xA4008xxx) is responsible for video input decoding.
 
-    The potUnit (0xA4009xxx) handles low-level video output.
+    The potUnit (0xA4009xxx) handles low-level video output, previously handled by SPOT's vidUnit.
 
     The sucUnit (0xA400Axxx) handles serial I/O for both the RS232 port and the SmartCard reader.
 
-    The modUnit (0xA400Bxxx) handles softmodem I/O. It's basically a stripped down audUnit.
+    The modUnit (0xA400Bxxx) handles softmodem I/O. It's basically a stripped down audUnit. Whether
+    this will be emulated is uncertain.
 
 ****************************************************************************************************/
 #include "emu.h"
 
 #include "solo1_asic.h"
-#include "solo1_asic_vid.h"
 
 #define LOG_UNKNOWN     (1U << 1)
 #define LOG_READS       (1U << 2)
@@ -58,15 +58,28 @@
 #define LOG_I2C_IGNORES (1U << 5)
 #define LOG_DEFAULT     (LOG_READS | LOG_WRITES | LOG_ERRORS | LOG_I2C_IGNORES | LOG_UNKNOWN)
 
+#define LOG_BUSUNIT     (1U << 6)
+#define LOG_RIOUNIT     (1U << 7)
+#define LOG_AUDUNIT     (1U << 8)
+#define LOG_VIDUNIT     (1U << 9)
+#define LOG_DEVUNIT     (1U << 10)
+#define LOG_MEMUNIT     (1U << 11)
+#define LOG_GFXUNIT     (1U << 12)
+#define LOG_DVEUNIT     (1U << 13)
+#define LOG_DIVUNIT     (1U << 14)
+#define LOG_POTUNIT     (1U << 15)
+#define LOG_SUCUNIT     (1U << 16)
+#define LOG_MODUNIT     (1U << 17)
+
 #define VERBOSE         (LOG_DEFAULT)
 #include "logmacro.h"
 
-#define BUS_INTSTAT_VIDEO 1 << 7 // Video interrupt
-#define BUS_INTSTAT_AUDIO 1 << 6 // Audio interrupt
-#define BUS_INTSTAT_RIO   1 << 5 // RIO device interrupt
-#define BUS_INTSTAT_SOLO1 1 << 4 // SOLO1 device interrupt
-#define BUS_INTSTAT_TIMER 1 << 3 // Timer interrupt
-#define BUS_INTSTAT_FENCE 1 << 2 // Fence (error) interrupt
+#define BUS_INT_VIDEO 1 << 7 // Video interrupt
+#define BUS_INT_AUDIO 1 << 6 // Audio interrupt
+#define BUS_INT_RIO   1 << 5 // RIO device interrupt
+#define BUS_INT_SOLO1 1 << 4 // SOLO1 device interrupt
+#define BUS_INT_TIMER 1 << 3 // Timer interrupt
+#define BUS_INT_FENCE 1 << 2 // Fence (error) interrupt
 
 #define BUS_GPINTSTAT_15 1 << 17
 #define BUS_GPINTSTAT_14 1 << 16
@@ -85,82 +98,265 @@
 #define BUS_GPINTSTAT_1  1 << 3
 #define BUS_GPINTSTAT_0  1 << 2
 
-#define BUS_AUD_INTSTAT_SOFTMODEM_DMA_IN  1 << 6 // modUnit DMA input interrupt
-#define BUS_AUD_INTSTAT_SOFTMODEM_DMA_OUT 1 << 5 // modUnit DMA output interrupt
-#define BUS_AUD_INTSTAT_DIV_AUDIO         1 << 4 // divUnit audio interrupt
-#define BUS_AUD_INTSTAT_DMA_IN            1 << 3 // audUnit DMA input interrupt
-#define BUS_AUD_INTSTAT_DMA_OUT           1 << 2 // audUnit DMA output interrupt
+#define BUS_AUD_INT_SOFTMODEM_DMA_IN  1 << 6 // modUnit DMA input interrupt
+#define BUS_AUD_INT_SOFTMODEM_DMA_OUT 1 << 5 // modUnit DMA output interrupt
+#define BUS_AUD_INT_DIV_AUDIO         1 << 4 // divUnit audio interrupt
+#define BUS_AUD_INT_DMA_IN            1 << 3 // audUnit DMA input interrupt
+#define BUS_AUD_INT_DMA_OUT           1 << 2 // audUnit DMA output interrupt
 
-#define BUS_VID_INTSTAT_DIV 1 << 5 // Interrupt trigger in divUnit
-#define BUS_VID_INTSTAT_GFX 1 << 4 // Interrupt trigger in gfxUnit
-#define BUS_VID_INTSTAT_POT 1 << 3 // Interrupt trigger in potUnit
-#define BUS_VID_INTSTAT_VID 1 << 2 // Interrupt trigger in vidUnit
+#define BUS_VID_INT_DIV 1 << 5 // Interrupt trigger in divUnit
+#define BUS_VID_INT_GFX 1 << 4 // Interrupt trigger in gfxUnit
+#define BUS_VID_INT_POT 1 << 3 // Interrupt trigger in potUnit
+#define BUS_VID_INT_VID 1 << 2 // Interrupt trigger in vidUnit (likely finished interrupt)
 
-#define BUS_DEV_INTSTAT_GPIO      1 << 7 // GPIO interrupt
-#define BUS_DEV_INTSTAT_UART      1 << 6 // sucUnit UART interrupt (RS232)
-#define BUS_DEV_INTSTAT_SMARTCARD 1 << 5 // sucUnit SmartCard interrupt
-#define BUS_DEV_INTSTAT_PARALLEL  1 << 4 // devUnit Parallel interrupt
-#define BUS_DEV_INTSTAT_IR_OUT    1 << 3 // devUnit IR output interrupt
-#define BUS_DEV_INTSTAT_IR_IN     1 << 2 // devUnit IR input interrupt
+#define BUS_DEV_INT_GPIO      1 << 7 // GPIO interrupt
+#define BUS_DEV_INT_UART      1 << 6 // sucUnit UART interrupt (RS232)
+#define BUS_DEV_INT_SMARTCARD 1 << 5 // sucUnit SmartCard interrupt
+#define BUS_DEV_INT_PARALLEL  1 << 4 // devUnit Parallel interrupt
+#define BUS_DEV_INT_IR_OUT    1 << 3 // devUnit IR output interrupt
+#define BUS_DEV_INT_IR_IN     1 << 2 // devUnit IR input interrupt
 
-#define BUS_RIO_INTSTAT_DEVICE3 1 << 5 // Device 3 interrupt
-#define BUS_RIO_INTSTAT_DEVICE2 1 << 4 // Device 2 interrupt
-#define BUS_RIO_INTSTAT_DEVICE1 1 << 3 // Device 1 interrupt (typically IDE controller)
-#define BUS_RIO_INTSTAT_DEVICE0 1 << 2 // Device 0 interrupt (typically modem/ethernet)
+#define BUS_RIO_INT_DEVICE3 1 << 5 // Device 3 interrupt
+#define BUS_RIO_INT_DEVICE2 1 << 4 // Device 2 interrupt
+#define BUS_RIO_INT_DEVICE1 1 << 3 // Device 1 interrupt (typically IDE controller)
+#define BUS_RIO_INT_DEVICE0 1 << 2 // Device 0 interrupt (typically modem/ethernet)
 
-#define BUS_TIM_INTSTAT_SYSTIMER    1 << 3 // System timer interrupt
-#define BUS_TIM_INTSTAT_BUS_TIMEOUT 1 << 2 // Bus timeout interrupt
+#define BUS_TIM_INT_SYSTIMER    1 << 3 // System timer interrupt
+#define BUS_TIM_INT_BUS_TIMEOUT 1 << 2 // Bus timeout interrupt
 
 #define BUS_RESETCAUSE_SOFTWARE 1 << 2 // Software reset
 #define BUS_RESETCAUSE_WATCHDOG 1 << 1 // Watchdog reset
 #define BUS_RESETCAUSE_SWITCH   1 << 0 // Reset button pressed
 
-#define SOLO1_NTSC_CLOCK 3.579575_MHz_XTAL
+#define VID_INT_DMA       1 << 2
+
+#define POT_INT_VSYNCE 1 << 5 // Even field VSYNC
+#define POT_INT_VSYNCO 1 << 4 // Odd field VSYNC
+#define POT_INT_HSYNC  1 << 3 // HSYNC hits HINTLINE value
+#define POT_INT_SHIFT  1 << 2
+
+#define POT_CNTL_DVE_USE_GFX_444  1 << 11
+#define POT_CNTL_DVE_CRCBSEL      1 << 10
+#define POT_CNTL_DVE_HALF_SHIFT   1 << 9
+#define POT_CNTL_HFIELD_LINE      1 << 8
+#define POT_CNTL_VID_SYNC_EN      1 << 7
+#define POT_CNTL_VID_DOUT_EN      1 << 6
+#define POT_CNTL_HALF_SHIFT       1 << 5
+#define POT_CNTL_INVERT_CRCB      1 << 4
+#define POT_CNTL_USE_GFXUNIT      1 << 3
+#define POT_CNTL_SOFT_RESET       1 << 2
+#define POT_CNTL_PROGRESSIVE_SCAN 1 << 1
+#define POT_CNTL_ENABLE_OUTPUTS   1 << 0
+
+#define NTSC_SCREEN_XTAL   XTAL(18'432'000)
+#define NTSC_SCREEN_WIDTH  640
+#define NTSC_SCREEN_HSTART 40
+#define NTSC_SCREEN_HSIZE  560
+#define NTSC_SCREEN_HEIGHT 480
+#define NTSC_SCREEN_VSTART 30
+#define NTSC_SCREEN_VSIZE  420
+
+#define VID_DEFAULT_XTAL   NTSC_SCREEN_XTAL
+#define VID_DEFAULT_WIDTH  NTSC_SCREEN_WIDTH
+#define VID_DEFAULT_HSTART NTSC_SCREEN_HSTART
+#define VID_DEFAULT_HSIZE  NTSC_SCREEN_HSIZE
+#define VID_DEFAULT_HEIGHT NTSC_SCREEN_HEIGHT
+#define VID_DEFAULT_VSTART NTSC_SCREEN_VSTART
+#define VID_DEFAULT_VSIZE  NTSC_SCREEN_VSIZE
+// This is always 0x77 on SPOT and SOLO for some reason (even on hardware)
+// This is needed to correct the HSTART value.
+#define VID_HSTART_OFFSET  0x77
+
+#define VID_Y_BLACK         0x10
+#define VID_Y_WHITE         0xeb
+#define VID_Y_RANGE         (VID_Y_WHITE - VID_Y_BLACK)
+#define VID_UV_OFFSET       0x80
+#define VID_BYTES_PER_PIXEL 2
+#define VID_DEFAULT_COLOR   (VID_UV_OFFSET << 0x10) | (VID_Y_BLACK << 0x08) | VID_UV_OFFSET;
 
 DEFINE_DEVICE_TYPE(SOLO1_ASIC, solo1_asic_device, "solo1_asic", "WebTV SOLO1 ASIC")
 
 solo1_asic_device::solo1_asic_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 	: device_t(mconfig, SOLO1_ASIC, tag, owner, clock),
 	device_serial_interface(mconfig, *this),
+	device_video_interface(mconfig, *this),
     m_hostcpu(*this, finder_base::DUMMY_TAG),
-//    m_solovid(*this, finder_base::DUMMY_TAG),
-    m_sys_timer(nullptr) // when it goes off, timer interrupt fires
-//    m_watchdog_timer(nullptr)
+	m_serial_id(*this, finder_base::DUMMY_TAG),
+	m_nvram(*this, finder_base::DUMMY_TAG),
+	m_screen(*this, "screen"),
+	m_dac(*this, "dac%u", 0),
+	m_lspeaker(*this, "lspeaker"),
+	m_rspeaker(*this, "rspeaker"),
+	m_watchdog(*this, "watchdog"),
+	m_power_led(*this, "power_led"),
+	m_connect_led(*this, "connect_led"),
+	m_message_led(*this, "message_led")
 {
 }
 
-void solo1_asic_device::regs_map(address_map &map)
+static DEVICE_INPUT_DEFAULTS_START( wtv_modem )
+	DEVICE_INPUT_DEFAULTS( "RS232_RXBAUD", 0xff, RS232_BAUD_115200 )
+	DEVICE_INPUT_DEFAULTS( "RS232_TXBAUD", 0xff, RS232_BAUD_115200 )
+	DEVICE_INPUT_DEFAULTS( "RS232_DATABITS", 0xff, RS232_DATABITS_8 )
+	DEVICE_INPUT_DEFAULTS( "RS232_PARITY", 0xff, RS232_PARITY_NONE )
+	DEVICE_INPUT_DEFAULTS( "RS232_STOPBITS", 0xff, RS232_STOPBITS_1 )
+DEVICE_INPUT_DEFAULTS_END
+
+void solo1_asic_device::bus_unit_map(address_map &map)
 {
-    map(0x0000, 0x0fff).rw(FUNC(solo1_asic_device::reg_bus_r), FUNC(solo1_asic_device::reg_bus_w)); // busUnit
-    //map(0x1000, 0x1fff).rw(FUNC(solo1_asic_device::reg_rio_r), FUNC(solo1_asic_device::reg_rio_w)); // rioUnit
-    //map(0x2000, 0x2fff).rw(FUNC(solo1_asic_device::reg_aud_r), FUNC(solo1_asic_device::reg_aud_w)); // audUnit
-//    map(0x3000, 0x3fff).rw(FUNC(solo1_asic_device::reg_vid_r), FUNC(solo1_asic_device::reg_vid_w)); // vidUnit
-    map(0x4000, 0x4fff).rw(FUNC(solo1_asic_device::reg_dev_r), FUNC(solo1_asic_device::reg_dev_w)); // devUnit
-    map(0x5000, 0x5fff).rw(FUNC(solo1_asic_device::reg_mem_r), FUNC(solo1_asic_device::reg_mem_w)); // memUnit
-    //map(0x6000, 0x6fff).rw(FUNC(solo1_asic_device::reg_gfx_r), FUNC(solo1_asic_device::reg_gfx_w)); // gfxUnit
-//    map(0x7000, 0x7fff).rw(FUNC(solo1_asic_device::reg_dve_r), FUNC(solo1_asic_device::reg_dve_w)); // dveUnit
-    //map(0x8000, 0x8fff).rw(FUNC(solo1_asic_device::reg_div_r), FUNC(solo1_asic_device::reg_div_w)); // divUnit
-//    map(0x9000, 0x9fff).rw(FUNC(solo1_asic_device::reg_pot_r), FUNC(solo1_asic_device::reg_pot_w)); // potUnit
-    //map(0xa000, 0xafff).rw(FUNC(solo1_asic_device::reg_suc_r), FUNC(solo1_asic_device::reg_suc_w)); // sucUnit
-    //map(0xb000, 0xbfff).rw(FUNC(solo1_asic_device::reg_mod_r), FUNC(solo1_asic_device::reg_mod_w)); // modUnit
 }
 
-void solo1_asic_device::set_aud_int_flag(uint32_t value)
+void solo1_asic_device::rio_unit_map(address_map &map)
 {
-    m_bus_int_status |= BUS_INTSTAT_AUDIO;
+}
+
+void solo1_asic_device::aud_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::vid_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::dev_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::mem_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::gfx_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::dve_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::div_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::pot_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::suc_unit_map(address_map &map)
+{
+}
+
+void solo1_asic_device::mod_unit_map(address_map &map)
+{
+}
+
+uint32_t solo1_asic_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+{
+	uint16_t screen_width = bitmap.width();
+	uint16_t screen_height =  bitmap.height();
+
+	m_vid_cstart = m_vid_nstart;
+	m_vid_csize = m_vid_nsize;
+	m_vid_ccnt = m_pot_drawstart;
+
+	address_space &space = m_hostcpu->space(AS_PROGRAM);
+
+	for (int y = 0; y < screen_height; y++)
+	{
+		uint32_t *line = &bitmap.pix(y);
+
+		m_pot_cline = y;
+
+		if (m_pot_cline == m_pot_hintline)
+			solo1_asic_device::set_pot_irq(POT_INT_HSYNC, 1);
+
+		for (int x = 0; x < screen_width; x += 2)
+		{
+			int32_t pixel = VID_DEFAULT_COLOR;
+
+			bool is_active_area = (
+				y >= m_pot_vstart
+				&& y < (m_pot_vstart + m_pot_drawvsize)
+
+				&& x >= m_pot_hstart
+				&& x < (m_pot_hstart + m_pot_hsize)
+			);
+
+			if (m_vid_fcntl & POT_CNTL_ENABLE_OUTPUTS && m_vid_dmacntl & VID_DMACNTL_DMAEN && is_active_area)
+			{
+				pixel = space.read_dword(m_vid_ccnt);
+
+				m_vid_ccnt += 2 * VID_BYTES_PER_PIXEL;
+			}
+			else if (m_vid_fcntl & VID_FCNTL_BLNKCOLEN)
+			{
+				pixel = m_pot_blank_color | (((m_pot_blank_color >> 0x08) & 0xff) << 0x18);
+			}
+
+			int32_t y1 = ((pixel >> 0x18) & 0xff) - VID_Y_BLACK;
+			int32_t Cb  = ((pixel >> 0x10) & 0xff) - VID_UV_OFFSET;
+			int32_t y2 = ((pixel >> 0x08) & 0xff) - VID_Y_BLACK;
+			int32_t Cr  = ((pixel) & 0xff) - VID_UV_OFFSET;
+
+			y1 = (((y1 << 8) + VID_UV_OFFSET) / VID_Y_RANGE);
+			y2 = (((y2 << 8) + VID_UV_OFFSET) / VID_Y_RANGE);
+
+			int32_t r = ((0x166 * Cr) + VID_UV_OFFSET) >> 8;
+			int32_t b = ((0x1C7 * Cb) + VID_UV_OFFSET) >> 8;
+			int32_t g = ((0x32 * b) + (0x83 * r) + VID_UV_OFFSET) >> 8;
+
+			*line++ = (
+				std::clamp(y1 + r, 0x00, 0xff) << 0x10
+				| std::clamp(y1 - g, 0x00, 0xff) << 0x08
+				| std::clamp(y1 + b, 0x00, 0xff)
+			);
+
+			*line++ = (
+				std::clamp(y2 + r, 0x00, 0xff) << 0x10
+				| std::clamp(y2 - g, 0x00, 0xff) << 0x08
+				| std::clamp(y2 + b, 0x00, 0xff)
+			);
+		}
+	}
+
+	solo1_asic_device::irq_vid_w(VID_INT_DMA, 1);
+
+	return 0;
+}
+
+void solo1_asic_device::irq_aud_w(uint32_t value)
+{
+    m_bus_int_status |= BUS_INT_AUDIO;
     m_bus_aud_int_status |= value;
 }
 
-void solo1_asic_device::set_vid_int_flag(uint32_t value)
+void solo1_asic_device::irq_vid_w(uint32_t value)
 {
-    m_bus_int_status |= BUS_INTSTAT_VIDEO;
+    m_bus_int_status |= BUS_INT_VIDEO;
     m_bus_vid_int_status |= value;
 }
 
-void solo1_asic_device::set_rio_int_flag(uint32_t value)
+void solo1_asic_device::irq_rio_w(uint32_t value)
 {
-    m_bus_int_status |= BUS_INTSTAT_RIO;
+    m_bus_int_status |= BUS_INT_RIO;
     m_bus_rio_int_status |= value;
+}
+
+void solo1_asic_device::set_pot_irq(uint8_t mask, int state)
+{
+}
+
+void solo1_asic_device::device_add_mconfig(machine_config &config)
+{
+	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
+	m_screen->set_screen_update(FUNC(solo1_asic_device::screen_update));
+	m_screen->screen_vblank().set(FUNC(solo1_asic_device::vblank_irq));
+	m_screen->set_raw(VID_DEFAULT_XTAL, VID_DEFAULT_WIDTH, 0, VID_DEFAULT_WIDTH, VID_DEFAULT_HEIGHT, 0, VID_DEFAULT_HEIGHT);
+
+	SPEAKER(config, m_lspeaker).front_left();
+	SPEAKER(config, m_rspeaker).front_right();
+	DAC_16BIT_R2R_TWOS_COMPLEMENT(config, m_dac[0], 0).add_route(0, m_lspeaker, 0.0);
+	DAC_16BIT_R2R_TWOS_COMPLEMENT(config, m_dac[1], 0).add_route(0, m_rspeaker, 0.0);
 }
 
 void solo1_asic_device::device_start()
@@ -242,10 +438,25 @@ void solo1_asic_device::device_reset()
 void solo1_asic_device::solo1_update_cycle_counting()
 {
     m_bus_tmr_count = m_clock;
-    if(m_compare_armed) {
+    if(m_compare_armed)
+    {
         uint32_t delta = m_bus_tmr_compare - m_bus_tmr_count;
         m_sys_timer->adjust(clocks_to_attotime(delta));
     }
+}
+
+uint32_t solo1_asic_device::reg_0000_r()
+{
+    return m_bus_chip_id;
+}
+
+uint32_t solo1_asic_device::reg_0004_r()
+{
+    return 0;
+}
+
+void solo1_asic_device::reg_0004_w(uint32_t data)
+{
 }
 
 TIMER_CALLBACK_MEMBER(solo1_asic_device::sys_timer_callback)
@@ -852,32 +1063,59 @@ void solo1_asic_device::reg_mem_w(offs_t offset, uint32_t data)
     }
 }
 
-/*uint32_t solo1_asic_device::reg_dve_r(offs_t offset)
+TIMER_CALLBACK_MEMBER(solo1_asic_device::dac_update)
 {
-    return m_solovid->reg_dve_r(offset);
-}
+	if(m_aud_dmacntl & AUD_DMACNTL_DMAEN)
+	{
+		if (m_aud_dma_ongoing)
+		{
+			address_space &space = m_hostcpu->space(AS_PROGRAM);
 
-void solo1_asic_device::reg_dve_w(offs_t offset, uint32_t data)
-{
-    m_solovid->reg_dve_w(offset, data);
-}
+			int16_t samplel = space.read_dword(m_aud_ccnt);
+			m_aud_ccnt += 2;
+			int16_t sampler = space.read_dword(m_aud_ccnt);
+			m_aud_ccnt += 2;
 
-uint32_t solo1_asic_device::reg_pot_r(offs_t offset)
-{
-    return m_solovid->reg_pot_r(offset);
-}
+			// For 8-bit we're assuming left-aligned samples
+			switch(m_aud_cconfig)
+			{
+				case AUD_CONFIG_16BIT_STEREO:
+				default:
+					m_dac[0]->write(samplel);
+					m_dac[1]->write(sampler);
+					break;
 
-void solo1_asic_device::reg_pot_w(offs_t offset, uint32_t data)
-{
-    m_solovid->reg_pot_w(offset, data);
-}
+				case AUD_CONFIG_16BIT_MONO:
+					m_dac[0]->write(samplel);
+					m_dac[1]->write(samplel);
+					break;
 
-uint32_t solo1_asic_device::reg_vid_r(offs_t offset)
-{
-    return m_solovid->reg_vid_r(offset);
-}
+				case AUD_CONFIG_8BIT_STEREO:
+					m_dac[0]->write((samplel >> 0x8) & 0xFF);
+					m_dac[1]->write((sampler >> 0x8) & 0xFF);
+					break;
 
-void solo1_asic_device::reg_vid_w(offs_t offset, uint32_t data)
-{
-    m_solovid->reg_vid_w(offset, data);
-}*/
+				case AUD_CONFIG_8BIT_MONO:
+					m_dac[0]->write((samplel >> 0x8) & 0xFF);
+					m_dac[1]->write((samplel >> 0x8) & 0xFF);
+					break;
+			}
+			if(m_aud_ccnt >= m_aud_cend)
+			{
+				spot_asic_device::irq_audio_w(1);
+				m_aud_dma_ongoing = false; // nothing more to DMA
+			}
+		}
+		if (!m_aud_dma_ongoing)
+		{
+			// wait for next DMA values to be marked as valid
+			m_aud_dma_ongoing = m_aud_dmacntl & (AUD_DMACNTL_NV | AUD_DMACNTL_NVF);
+			if (!m_aud_dma_ongoing) return; // values aren't marked as valid; don't prepare for next DMA
+			m_aud_cstart = m_aud_nstart;
+			m_aud_csize = m_aud_nsize;
+			m_aud_cend = (m_aud_cstart + m_aud_csize);
+			m_aud_cconfig = m_aud_nconfig;
+			m_aud_ccnt = m_aud_cstart;
+		}
+	}
+}

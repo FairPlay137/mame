@@ -15,8 +15,13 @@
     The technical specifications that this implementation is based on can be found here:
     http://wiki.webtv.zone/misc/SOLO1/SOLO1_ASIC_Spec.pdf
 
+    NOTE: This functionality is currently being handled within the main solo1_asic device. This
+    device may serve as the video handler in the future once solo1_asic gets too complex, but
+    for now this device is UNUSED.
+
 ************************************************************************************************/
 
+/*
 #ifndef MAME_MACHINE_SOLO1_ASIC_VID_H
 #define MAME_MACHINE_SOLO1_ASIC_VID_H
 
@@ -109,4 +114,4 @@ private:
 
 DECLARE_DEVICE_TYPE(SOLO1_ASIC_VID, solo1_asic_vid_device)
 
-#endif
+#endif*/

@@ -23,7 +23,13 @@
     The technical specifications that this implementation is based on can be found here:
     http://wiki.webtv.zone/misc/SOLO1/SOLO1_ASIC_Spec.pdf
 
+    NOTE: This functionality is currently being handled within the main solo1_asic device. This
+    device may serve as the video handler in the future once solo1_asic gets too complex, but
+    for now this device is UNUSED.
+
 ************************************************************************************************/
+
+/*
 #include "emu.h"
 #include "render.h"
 #include "solo1_asic_vid.h"
@@ -404,3 +410,4 @@ bool solo1_asic_vid_device::is_even_field()
 {
     return false;
 }
+*/

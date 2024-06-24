@@ -726,45 +726,44 @@ uint32_t spot_asic_device::reg_200c_r()
 
 uint32_t spot_asic_device::reg_2010_r()
 {
-	logerror("%s: reg_2010_r (AUD_NSTART)\n", machine().describe_context());
+	//logerror("%s: reg_2010_r (AUD_NSTART)\n", machine().describe_context());
 	return m_aud_nstart;
 }
 
 void spot_asic_device::reg_2010_w(uint32_t data)
 {
-	logerror("%s: reg_2010_w %08x (AUD_NSTART)\n", machine().describe_context(), data);
+	//logerror("%s: reg_2010_w %08x (AUD_NSTART)\n", machine().describe_context(), data);
 	m_aud_nstart = data;
 }
 
 uint32_t spot_asic_device::reg_2014_r()
 {
-	logerror("%s: reg_2014_r (AUD_NSIZE)\n", machine().describe_context());
+	//logerror("%s: reg_2014_r (AUD_NSIZE)\n", machine().describe_context());
 	return m_aud_nsize;
 }
 
 void spot_asic_device::reg_2014_w(uint32_t data)
 {
-	logerror("%s: reg_2014_w %08x (AUD_NSIZE)\n", machine().describe_context(), data);
+	//logerror("%s: reg_2014_w %08x (AUD_NSIZE)\n", machine().describe_context(), data);
 
 	m_aud_nsize = data;
 }
 
 uint32_t spot_asic_device::reg_2018_r()
 {
-	logerror("%s: reg_2018_r (AUD_NCONFIG)\n", machine().describe_context());
+	//logerror("%s: reg_2018_r (AUD_NCONFIG)\n", machine().describe_context());
 	return m_aud_nconfig;
 }
 
 void spot_asic_device::reg_2018_w(uint32_t data)
 {
-	logerror("%s: reg_2018_w %08x (AUD_NCONFIG)\n", machine().describe_context(), data);
-
+	//logerror("%s: reg_2018_w %08x (AUD_NCONFIG)\n", machine().describe_context(), data);
 	m_aud_nconfig = data;
 }
 
 uint32_t spot_asic_device::reg_201c_r()
 {
-	logerror("%s: reg_201c_r (AUD_DMACNTL)\n", machine().describe_context());
+	//logerror("%s: reg_201c_r (AUD_DMACNTL)\n", machine().describe_context());
 
 	spot_asic_device::irq_audio_w(0);
 
@@ -773,7 +772,7 @@ uint32_t spot_asic_device::reg_201c_r()
 
 void spot_asic_device::reg_201c_w(uint32_t data)
 {
-	logerror("%s: reg_201c_w %08x (AUD_DMACNTL)\n", machine().describe_context(), data);
+    //logerror("%s: reg_201c_w %08x (AUD_DMACNTL)\n", machine().describe_context(), data);
 	if ((m_aud_dmacntl ^ data) & AUD_DMACNTL_DMAEN)
 	{
 		if (data & AUD_DMACNTL_DMAEN)
@@ -1164,6 +1163,7 @@ uint32_t spot_asic_device::reg_4010_r()
 
 void spot_asic_device::reg_4010_w(uint32_t data)
 {
+	// TODO: This should be refactored into its own serial device that plugs into the SmartCard slot.
 	if (m_emu_config->read() & EMUCONFIG_BANGSERIAL)
 	{
 		m_smrtcrd_serial_bitmask = (m_smrtcrd_serial_bitmask << 1) | 1;
@@ -1488,7 +1488,6 @@ TIMER_CALLBACK_MEMBER(spot_asic_device::dac_update)
 			m_aud_ccnt += 2;
 			int16_t sampler = space.read_word(m_aud_ccnt);
 			m_aud_ccnt += 2;
-
 			// For 8-bit we're assuming left-aligned samples
 			switch(m_aud_cconfig)
 			{

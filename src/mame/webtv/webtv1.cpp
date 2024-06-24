@@ -5,8 +5,11 @@
  *
  * WebTV FCS (1996)
  * 
- * The WebTV line of products was an early attempt to bring the Internet to the
- * television. Later on in its life, it was rebranded as MSN TV.
+ * The WebTV line of products was a set of thin clients meant to make the emerging-at-
+ * -the-time Internet accessible to those who weren't as familiar with computers,
+ * adapting websites for display on television sets, simplifying the control scheme to
+ * work with just a remote control and an optional keyboard, and optimizing them to work
+ * smoothly on low-cost hardware. Later on in its life, it was rebranded as MSN TV.
  * 
  * FCS, shorthand for First Customer Ship, was the first generation of WebTV hardware.
  * Its ASIC, known as SPOT or FIDO, is much simpler than SOLO.
@@ -18,13 +21,6 @@
  * This driver would not have been possible without the efforts of the WebTV community
  * to preserve technical specifications, as well as the various reverse-engineering
  * efforts that were made.
- * 
- * Known issues:
- * - The CPU gets thrown into the exception handler loop at bfc0c030, a little before
- *   the memory check. This has to be manually bypassed to continue the boot process.
- *   (Worked around in mips3 and mips3drc)
- * - AppROMs appear to crash shortly after power on, with debug AppROMs throwing up
- *   "### CACHE ERROR" when serial communication is wired up to the SmartCard slot.
  * 
  ***************************************************************************************/
 
@@ -125,25 +121,18 @@ private:
 void webtv1_state::bank0_flash_w(offs_t offset, uint32_t data)
 {
 	logerror("%s: bank0_flash_w 0x1f%06x = %08x\n", machine().describe_context(), offset, data);
-	//uint32_t actual_offset = offset & 0xfffff;
 	uint16_t upper_value = (data >> 16) & 0xffff;
-	//upper_value = (upper_value << 8) | ((upper_value >> 8) & 0xff);
-	m_flash0->write(offset, upper_value);
-
 	uint16_t lower_value = data & 0xffff;
-	//lower_value = (lower_value << 8) | ((lower_value >> 8) & 0xff);
+	m_flash0->write(offset, upper_value);
 	m_flash1->write(offset, lower_value);
 }
 
 uint32_t webtv1_state::bank0_flash_r(offs_t offset)
 {
 	//logerror("%s: bank0_flash_r 0x1f%06x\n", machine().describe_context(), offset);
-	//uint32_t actual_offset = offset & 0xfffff;
 	uint16_t upper_value = m_flash0->read(offset);
-	//upper_value = (upper_value << 8) | ((upper_value >> 8) & 0xff);
 	uint16_t lower_value = m_flash1->read(offset);
-	//lower_value = (lower_value << 8) | ((lower_value >> 8) & 0xff);
-	return (upper_value << 16) | (lower_value);
+    return (upper_value << 16) | (lower_value);
 }
 
 // WebTV's firmware writes the flashing code to the lower 256 bytes of RAM
@@ -187,6 +176,7 @@ void webtv1_state::webtv1_map(address_map &map)
 
 	// ROM
 	map(0x1f000000, 0x1f3fffff).rw(FUNC(webtv1_state::bank0_flash_r), FUNC(webtv1_state::bank0_flash_w)).share("bank0"); // Flash ROM, 4MB (retail configuration 2MB)
+	// 4MB ROMs erroneously go past the end of the bank0 flash space by one dword.
 	map(0x1f800000, 0x1fffffff).rom().region("bank1", 0); // Mask ROM
 }
 
@@ -350,9 +340,10 @@ ROM_START( wtv1sony )
 	ROM_LOAD("ds2401.bin", 0x0000, 0x0008, NO_DUMP)
 
 	ROM_REGION32_BE(0x800000, "bank1", 0)
-	ROM_LOAD("bootrom.o", 0x000000, 0x200000, NO_DUMP) /* pre-decoded; from archival efforts of the WebTV update servers */
+	ROM_LOAD("bootrom.o", 0x000000, 0x200000, CRC(5ad8f7b6) SHA1(a5c411f5f0126e79a0d925822062203c2272faf8)) /* pre-decoded; from archival efforts of the WebTV update servers */
 	ROM_RELOAD(0x200000, 0x200000)
 	ROM_RELOAD(0x400000, 0x200000)
+	ROM_RELOAD(0x600000, 0x200000)
 ROM_END
 
 ROM_START( wtv1phil )
@@ -360,11 +351,12 @@ ROM_START( wtv1phil )
 	ROM_LOAD("ds2401.bin", 0x0000, 0x0008, NO_DUMP)
 
 	ROM_REGION32_BE(0x800000, "bank1", 0)
-	ROM_LOAD("bootrom.o", 0x000000, 0x200000, NO_DUMP) /* pre-decoded; from archival efforts of the WebTV update servers */
+	ROM_LOAD("bootrom.o", 0x000000, 0x200000, CRC(5ad8f7b6) SHA1(a5c411f5f0126e79a0d925822062203c2272faf8)) /* pre-decoded; from archival efforts of the WebTV update servers */
 	ROM_RELOAD(0x200000, 0x200000)
 	ROM_RELOAD(0x400000, 0x200000)
+	ROM_RELOAD(0x600000, 0x200000)
 ROM_END
 
 //    YEAR  NAME      PARENT  COMPAT  MACHINE         INPUT         CLASS         INIT        COMPANY               FULLNAME                            FLAGS
-CONS( 1996, wtv1sony,      0,      0, webtv1_sony,    retail_input, webtv1_state, empty_init, "Sony",               "INT-W100 WebTV Internet Terminal", MACHINE_NOT_WORKING + MACHINE_NO_SOUND )
-CONS( 1996, wtv1phil,      0,      0, webtv1_philips, retail_input, webtv1_state, empty_init, "Philips-Magnavox",   "MAT960 WebTV Internet Terminal",   MACHINE_NOT_WORKING + MACHINE_NO_SOUND )
+CONS( 1996, wtv1sony,      0,      0, webtv1_sony,    retail_input, webtv1_state, empty_init, "Sony",               "INT-W100 WebTV Internet Terminal", MACHINE_NOT_WORKING + MACHINE_IMPERFECT_TIMING )
+CONS( 1996, wtv1phil,      0,      0, webtv1_philips, retail_input, webtv1_state, empty_init, "Philips-Magnavox",   "MAT960 WebTV Internet Terminal",   MACHINE_NOT_WORKING + MACHINE_IMPERFECT_TIMING )

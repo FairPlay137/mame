@@ -25,27 +25,42 @@
 #include "diserial.h"
 
 #include "cpu/mips/mips3.h"
-#include "solo1_asic_vid.h"
+#include "machine/ds2401.h"
+#include "machine/i2cmem.h"
+#include "machine/watchdog.h"
+#include "sound/dac.h"
+#include "speaker.h"
 
-class solo1_asic_device : public device_t, public device_serial_interface
+class solo1_asic_device : public device_t, public device_serial_interface, public device_video_interface
 {
 public:
 	// construction/destruction
 	solo1_asic_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
-
-    void regs_map(address_map &map);
     
     void bus_unit_map(address_map &map);
-    //void rio_unit_map(address_map &map);
+    void rio_unit_map(address_map &map);
+    void aud_unit_map(address_map &map);
+    void vid_unit_map(address_map &map);
     void dev_unit_map(address_map &map);
     void mem_unit_map(address_map &map);
-    //void suc_unit_map(address_map &map);
+    void gfx_unit_map(address_map &map);
+    void dve_unit_map(address_map &map);
+    void div_unit_map(address_map &map);
+    void pot_unit_map(address_map &map);
+    void suc_unit_map(address_map &map);
+    void mod_unit_map(address_map &map);
 
 	template <typename T> void set_hostcpu(T &&tag) { m_hostcpu.set_tag(std::forward<T>(tag)); }
+	template <typename T> void set_serial_id(T &&tag) { m_serial_id.set_tag(std::forward<T>(tag)); }
+	template <typename T> void set_nvram(T &&tag) { m_nvram.set_tag(std::forward<T>(tag)); }
 
-    void set_aud_int_flag(uint32_t value);
-    void set_vid_int_flag(uint32_t value);
-    void set_rio_int_flag(uint32_t value);
+	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+
+    void irq_aud_w(uint32_t value);
+    void irq_vid_w(uint32_t value);
+    void irq_rio_w(uint32_t value);
+
+	void set_pot_irq(uint8_t mask, int state);
 
     uint32_t reg_bus_r(offs_t offset);
     void reg_bus_w(offs_t offset, uint32_t data);
@@ -67,10 +82,10 @@ public:
     
 protected:
 	// device-level overrides
+	virtual void device_add_mconfig(machine_config &config) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
-    /* Begin busUnit registers */
     uint32_t m_bus_chip_id; // SOLO chip ID
     uint32_t m_bus_chip_cntl;
     
@@ -124,22 +139,58 @@ protected:
     uint32_t m_bus_bootmode;
     uint32_t m_bus_use_bootmode;
 
-    /* End busUnit registers */
+	uint32_t m_vid_cstart;
+	uint32_t m_vid_csize;
+	uint32_t m_vid_ccnt;
+    uint32_t m_vid_nstart;
+	uint32_t m_vid_nsize;
+	uint32_t m_vid_dmacntl;
+
+	uint32_t m_pot_hstart;
+	uint32_t m_pot_hsize;
+	uint32_t m_pot_vstart;
+	uint32_t m_pot_vsize;
+	uint16_t m_pot_cntl;
+	uint32_t m_pot_blank_color;
+	uint32_t m_pot_cline;
+	uint32_t m_pot_hintline;
+	uint32_t m_pot_intenable;
+	uint32_t m_pot_intstat;
+
+	uint32_t m_pot_drawstart;
+	uint32_t m_pot_drawvsize;
 
 private:
     required_device<mips3_device> m_hostcpu;
+	required_device<ds2401_device> m_serial_id;
+	required_device<i2cmem_device> m_nvram;
+    
+	required_device<screen_device> m_screen;
+    
+	required_device_array<dac_word_interface, 2> m_dac;
+	required_device<speaker_device> m_lspeaker;
+	required_device<speaker_device> m_rspeaker;
+    
+	required_device<watchdog_timer_device> m_watchdog;
 
-    emu_timer *m_sys_timer;
-    //emu_timer *m_watchdog_timer;
+
+	output_finder<1> m_power_led;
+	output_finder<1> m_connect_led;
+	output_finder<1> m_message_led;
+
+	void vblank_irq(int state);
     
     uint32_t m_compare_armed;
+    
+    bool m_aud_dma_ongoing;
 
     void solo1_update_cycle_counting();
 
+    emu_timer *m_sys_timer = nullptr;
     TIMER_CALLBACK_MEMBER(sys_timer_callback);
-    //TIMER_CALLBACK_MEMBER(watchdog_timer_callback);
 
-    /* Begin devUnit registers */
+	emu_timer *dac_update_timer = nullptr;
+	TIMER_CALLBACK_MEMBER(dac_update);
 
     uint32_t m_dev_irold;
     uint32_t m_dev_led;
@@ -179,19 +230,11 @@ private:
     uint32_t m_dev_diag;
     uint32_t m_dev_devdiag;
 
-    /* End devUnit registers */
-
-    /* Begin memUnit registers */
-
     uint32_t m_mem_timing; // SDRAM timing parameters
     uint32_t m_mem_cntl;
     uint32_t m_mem_burp; // Memory access arbitration control
     uint32_t m_mem_refresh_cntl; // SDRAM refresh control
     uint32_t m_mem_cmd; // SDRAM commands
-
-    /* End memUnit registers */
-
-    /* Begin sucUnit registers */
 
     uint32_t m_sucgpu_tff_hr; // TX FIFO data
     uint32_t m_sucgpu_tff_hrsrw; // TX FIFO data (debug)
@@ -202,7 +245,11 @@ private:
     uint32_t m_sucgpu_tff_sta;
     uint32_t m_sucgpu_tff_gcr;
 
-    /* End sucUnit registers */
+    /* busUnit registers */
+
+    uint32_t reg_0000_r();          // BUS_CHIPID (read-only)
+    uint32_t reg_0004_r();          // BUS_CHPCNTL (read)
+    void reg_0004_w(uint32_t data); // BUS_CHPCNTL (write)
     
 };
 
