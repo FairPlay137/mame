@@ -611,6 +611,7 @@ public:
 	void func_printf_probe();
 	void func_debug_break();
 	void func_unimplemented();
+	void set_drc_cache_dirty_bit();
 private:
 	/* internal compiler state */
 	struct compiler_state
@@ -750,34 +751,6 @@ public:
 	}
 };
 
-class r4640_device : public r4650_device {
-public:
-	// construction/destruction
-	r4640_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, endianness_t endianness)
-		: r4650_device(mconfig, type, tag, owner, clock, endianness)
-	{
-	}
-};
-
-
-class r4640be_device : public r4640_device {
-public:
-	// construction/destruction
-	r4640be_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
-		: r4640_device(mconfig, R4640BE, tag, owner, clock, ENDIANNESS_BIG)
-	{
-	}
-};
-
-class r4640le_device : public r4640_device {
-public:
-	// construction/destruction
-	r4640le_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
-		: r4640_device(mconfig, R4640LE, tag, owner, clock, ENDIANNESS_LITTLE)
-	{
-	}
-};
-
 class r4650_device : public mips3_device {
 public:
 	// construction/destruction
@@ -821,6 +794,34 @@ public:
 	// construction/destruction
 	r4650le_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 		: r4650_device(mconfig, R4650LE, tag, owner, clock, ENDIANNESS_LITTLE)
+	{
+	}
+};
+
+class r4640_device : public r4650_device {
+public:
+	// construction/destruction
+	r4640_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, endianness_t endianness)
+		: r4650_device(mconfig, type, tag, owner, clock, endianness)
+	{
+	}
+};
+
+
+class r4640be_device : public r4640_device {
+public:
+	// construction/destruction
+	r4640be_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
+		: r4640_device(mconfig, R4640BE, tag, owner, clock, ENDIANNESS_BIG)
+	{
+	}
+};
+
+class r4640le_device : public r4640_device {
+public:
+	// construction/destruction
+	r4640le_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
+		: r4640_device(mconfig, R4640LE, tag, owner, clock, ENDIANNESS_LITTLE)
 	{
 	}
 };

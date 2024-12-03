@@ -210,6 +210,7 @@ const double XTAL::known_xtals[] = {
 	 12'000'000, // 12_MHz_XTAL            Extremely common, used on 100's of PCBs
 	 12'057'600, // 12.0576_MHz_XTAL       Poly 1 (38400 * 314)
 	 12'096'000, // 12.096_MHz_XTAL        Some early 80's Atari games
+	 12'272'700, // 12.2727_MHz_XTAL       Drives the FS6182 VCXO to generate the UltimateTV's pixel clock
 	 12'288'000, // 12.288_MHz_XTAL        Sega Model 3 digital audio board
 	 12'292'000, // 12.292_MHz_XTAL        Northwest Digitial Systems GP-19
 	 12'324'000, // 12.324_MHz_XTAL        Otrona Attache
@@ -364,6 +365,7 @@ const double XTAL::known_xtals[] = {
 	 24'167'829, // 24.167829_MHz_XTAL     Neo Geo AES rev. 3-3 and later (~1536x NTSC line rate)
 	 24'270'000, // 24.27_MHz_XTAL         CIT-101XL
 	 24'300'000, // 24.3_MHz_XTAL          ADM 36 132-column display clock
+	 24'545'400, // 24.5454_MHz_XTAL       WebTV's SAA7187 video encoder clock
 	 24'576'000, // 24.576_MHz_XTAL        Pole Position h/w, Model 3 CPU board
 	 24'883'200, // 24.8832_MHz_XTAL       DEC VT100
 	 25'000'000, // 25_MHz_XTAL            Namco System 22, Taito GNET, Dogyuun h/w
@@ -451,6 +453,7 @@ const double XTAL::known_xtals[] = {
 	 39'710'000, // 39.71_MHz_XTAL         Wyse WY-60 132-column display clock
 	 40'000'000, // 40_MHz_XTAL            -
 	 40'210'000, // 40.21_MHz_XTAL         Fairlight CMI IIx
+	 40'320'000, // 40.32_MHz_XTAL         Clock on WebTV's Rockwell RC288DPL modem
 	 41'539'000, // 41.539_MHz_XTAL        IBM PS/2 132-column text mode
 	 42'000'000, // 42_MHz_XTAL            BMC A-00211 - Popo Bear
 	 42'105'200, // 42.1052_MHz_XTAL       NEC PC-88xx
@@ -487,6 +490,7 @@ const double XTAL::known_xtals[] = {
 	 54'000'000, // 54_MHz_XTAL            Taito JC
 	 55'000'000, // 55_MHz_XTAL            Eolith Vega
 	 56'000'000, // 56_MHz_XTAL            ARM7500 based Belatra slot machines
+	 56'448'000, // 56.448_MHz_XTAL        Drives WebTV's SPOT ASIC and Rockwell RCVDL56ACFW modem (44100 * 1280)
 	 57'272'727, // 57.272727_MHz_XTAL     Psikyo SH2 with /2 divider (16x NTSC subcarrier)
 	 57'283'200, // 57.2832_MHz_XTAL       Macintosh IIci RBV, 15-inch portrait display
 	 58'000'000, // 58_MHz_XTAL            Magic Reel (Play System)

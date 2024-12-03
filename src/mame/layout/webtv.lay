@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<mamelayout version="2">
+	<element name="power_led" defstate="0">
+		<rect state="1"><color red="0.0" green="0.75" blue="0.0" /></rect>
+		<rect state="0"><color red="0.0" green="0.20" blue="0.0" /></rect>
+	</element>
+	<element name="connect_led" defstate="0">
+		<rect state="1"><color red="0.75" green="0.65" blue="0.0" /></rect>
+		<rect state="0"><color red="0.20" green="0.15" blue="0.0" /></rect>
+	</element>
+	<element name="message_led" defstate="0">
+		<rect state="1"><color red="0.75" green="0.0" blue="0.0" /></rect>
+		<rect state="0"><color red="0.20" green="0.0" blue="0.0" /></rect>
+	</element>
+
+	<element name="spacer">
+		<rect><color red="0.0" green="0.0" blue="0.0" /></rect>
+	</element>
+
+	<element name="text_power">
+		<text string="POWER"><color red="0.8" green="0.8" blue="0.8" /></text>
+	</element>
+	<element name="text_connect">
+		<text string="CONNECTED"><color red="0.8" green="0.8" blue="0.8" /></text>
+	</element>
+	<element name="text_message">
+		<text string="MESSAGE"><color red="0.8" green="0.8" blue="0.8" /></text>
+	</element>
+
+	<group name="status_leds">
+		<element ref="text_power"><bounds x="0" y="5" width="30" height="10" /></element>
+		<element name="power_led" ref="power_led"><bounds x="5" y="15" width="20" height="10" /></element>
+
+		<element ref="text_connect"><bounds x="35" y="5" width="30" height="10" /></element>
+		<element name="connect_led" ref="connect_led"><bounds x="40" y="15" width="20" height="10" /></element>
+
+		<element ref="text_message"><bounds x="70" y="5" width="30" height="10" /></element>
+		<element name="message_led" ref="message_led"><bounds x="75" y="15" width="20" height="10" /></element>
+
+		<element name="spacer" ref="spacer"><bounds x="0" y="25" width="100" height="2" /></element>
+	</group>
+
+	<view name="Default Layout">
+		<screen index="0">
+			<bounds x="0" y="0" width="~scr0width~" height="~scr0height~" />
+		</screen>
+
+		<collection name="Status LEDs" visible="yes">
+			<group ref="status_leds">
+				<bounds x="0" y="~scr0height~" width="95" height="22" />
+			</group>
+		</collection>
+	</view>
+</mamelayout>

@@ -31,6 +31,7 @@
 #include "cpu/drcfe.h"
 #include "cpu/drcuml.h"
 #include "cpu/drcumlsh.h"
+#include "mips3.h"
 
 
 /* Use with STRICT_VERIFY to print debug info to console for extra validation checks */
@@ -3680,4 +3681,9 @@ void mips3_device::log_opcode_desc(const opcode_desc *desclist, int indent)
 		if (desclist->flags & OPFLAG_END_SEQUENCE)
 			m_drcuml->log_printf("-----\n");
 	}
+}
+
+void mips3_device::set_drc_cache_dirty_bit()
+{
+	m_drc_cache_dirty = 1;
 }
