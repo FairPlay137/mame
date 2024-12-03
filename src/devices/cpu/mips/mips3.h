@@ -32,6 +32,8 @@ DECLARE_DEVICE_TYPE(VR4310BE, vr4310be_device)
 DECLARE_DEVICE_TYPE(VR4310LE, vr4310le_device)
 DECLARE_DEVICE_TYPE(R4600BE, r4600be_device)
 DECLARE_DEVICE_TYPE(R4600LE, r4600le_device)
+DECLARE_DEVICE_TYPE(R4640BE, r4640be_device)
+DECLARE_DEVICE_TYPE(R4640LE, r4640le_device)
 DECLARE_DEVICE_TYPE(R4650BE, r4650be_device)
 DECLARE_DEVICE_TYPE(R4650LE, r4650le_device)
 DECLARE_DEVICE_TYPE(R4700BE, r4700be_device)
@@ -744,6 +746,34 @@ public:
 	// construction/destruction
 	r4600le_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock)
 		: mips3_device(mconfig, R4600LE, tag, owner, clock, MIPS3_TYPE_R4600, ENDIANNESS_LITTLE, 32) // Should be 64 bits
+	{
+	}
+};
+
+class r4640_device : public r4650_device {
+public:
+	// construction/destruction
+	r4640_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock, endianness_t endianness)
+		: r4650_device(mconfig, type, tag, owner, clock, endianness)
+	{
+	}
+};
+
+
+class r4640be_device : public r4640_device {
+public:
+	// construction/destruction
+	r4640be_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
+		: r4640_device(mconfig, R4640BE, tag, owner, clock, ENDIANNESS_BIG)
+	{
+	}
+};
+
+class r4640le_device : public r4640_device {
+public:
+	// construction/destruction
+	r4640le_device(const machine_config& mconfig, const char* tag, device_t* owner, uint32_t clock)
+		: r4640_device(mconfig, R4640LE, tag, owner, clock, ENDIANNESS_LITTLE)
 	{
 	}
 };
